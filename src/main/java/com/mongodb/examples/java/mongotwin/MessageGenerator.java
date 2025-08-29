@@ -12,10 +12,9 @@ import java.util.stream.IntStream;
 
 
 public class MessageGenerator {
+    final static int NUM_TOTAL_fld = 250;
+    final static int NUM_fld_PER_MESSAGE = 50;
 
-    final static int NUM_TOTAL_ATTRIBUTES = 300;
-    final static int NUM_ATTRIBUTES_PER_MESSAGE = 50;
-    final static int NUM_DEVICES = 10000;
     final static int SHORT_STRING_LENGTH = 16;
     final static int TINY_STRING_LENGTH = 6;
     final static int OUT_OF_ORDER_EVERY = 10000; // One in 10,000 messages is out of order
@@ -25,11 +24,14 @@ public class MessageGenerator {
             "brand,String,20", "country,String,100", "version,Integer,10", "tripDataReason,String,100",
             "actuation,String,5", "fleetId,String,10000", "fleetProviderId,String,1000"
     };
-
+    private final int nDevices;
+    TechnicalStringGenerator tsg;
     Date streamStartTime = new Date();
     FastRCG rng = new FastRCG();
 
-    MessageGenerator() {
+    MessageGenerator(int nDevices) {
+        this.nDevices = nDevices;
+        tsg = new TechnicalStringGenerator();
         rng.setSeed(1); // Predictable and consistent results
     }
 
@@ -44,15 +46,15 @@ public class MessageGenerator {
         return sb.toString();
     }
 
-    Map<String, Object> getAttribute(int deviceId, Date now, int attrId) {
-        Map<String, Object> attr = new HashMap<>();
+    Map<String, Object> getField(int deviceId, Date now, int fld) {
+        Map<String, Object> field = new HashMap<>();
 
         //timestamps - change between every reading
-        attr.put("attrId", String.format("A_%03x", attrId));
-        attr.put("tsSent", now);
+        field.put("fid", "f" + fld);
+        field.put("tsSent", now);
         // Recorded a little earlier than send
         Date timeRecorded = new Date(now.getTime() - rng.nextInt(120000));
-        attr.put("tsCaptured", timeRecorded);
+        field.put("ts", timeRecorded);
 
         // Also mileage - we can relate that to timestamp
         int initialMileage = rng.nextInt(deviceId, 100000);
@@ -62,28 +64,31 @@ public class MessageGenerator {
         // Some sort of device counter independant of time - like a car odometer, changes between some readings
 
 
-        attr.put("mileageRecorded", initialMileage + recordiMins);
-        attr.put("mileageSent", initialMileage + runningMins);
+        field.put("mileageRecorded", initialMileage + recordiMins);
+        field.put("mileageSent", initialMileage + runningMins);
 
         String[] constFields = {"unit", "dataOwner", "textId", "picId"};
         // Some things that dont change - but technically could ocattionally
-        rng.setSeed(deviceId + attrId);
+        rng.setSeed(deviceId + fld);
         for (String cfname : constFields) {
             int stringId = rng.nextInt(100);
-            attr.put(cfname, generateString(stringId, TINY_STRING_LENGTH));
+            field.put(cfname, tsg.generateString(stringId, SHORT_STRING_LENGTH));
         }
 
         // The value itself will sometimes vary constantly and other times vary occasioanlly
 
-        if (attrId % 2 == 0) {
+        if (fld % 2 == 0) {
             // Even ones change always
-            attr.put("value", rng.nextInt((int) System.currentTimeMillis() + deviceId + attrId, 1000000));
+
+            int seed = Math.toIntExact((System.currentTimeMillis() % 0xFFFFFF) + deviceId + fld);
+            field.put("value", rng.nextInt(seed, 1000000));
         } else {
             //Even ones change every 5 mins
-            attr.put("value", rng.nextInt((int) (System.currentTimeMillis() / 300000) + deviceId + attrId, 1000000));
+            int seed = Math.toIntExact((System.currentTimeMillis() / 300000) + deviceId + fld);
+            field.put("value", rng.nextInt(seed, 1000000));
         }
 
-        return attr;
+        return field;
     }
 
     Map<String, Object> getMessage() {
@@ -95,51 +100,49 @@ public class MessageGenerator {
     Map<String, Object> getMessage(boolean full, Integer deviceId) {
         HashMap<String, Object> message = new HashMap<>();
         if (deviceId == null) {
-            deviceId = rng.nextInt(NUM_DEVICES);
+            deviceId = rng.nextInt(nDevices);
         }
-
-        message.put("_id", String.format("V_%08d", deviceId));
-
+        message.put("isNew", full);
+        message.put("_id", "V_" + deviceId);
         Date now = new Date(); // Current Time
-
-
         // Occasioanlly we get a message thats not from now, it's from a while ago
         if (rng.nextInt((int) (System.currentTimeMillis() + deviceId), OUT_OF_ORDER_EVERY) == 0) {
             now = new Date(now.getTime() - rng.nextInt(120000));
         }
-        message.put("timestamp", now);
+        message.put("msgTs", now);
 
         // For now we can keep these constant, but code will work if we change them
-
+        int tlc = 0;
         for (String topLevelField : topLevelFields) {
             String[] parts = topLevelField.split(",");
             int cardinality = Integer.parseInt(parts[2]);
             Object value = switch (parts[1]) {
-                case "String" -> generateString(rng.nextInt(deviceId, cardinality), SHORT_STRING_LENGTH);
-                case "Integer" -> rng.nextInt(deviceId, cardinality);
+                case "String" -> tsg.generateString(rng.nextInt(deviceId + tlc++, cardinality), TINY_STRING_LENGTH);
+                case "Integer" -> rng.nextInt(deviceId + tlc++, cardinality);
                 default -> null;
             };
             message.put(parts[0], value);
-            List<Integer> attrsToPopulate = new ArrayList<>();
-            List<Map<String, Object>> attributes = new ArrayList<Map<String, Object>>();
+            List<Integer> fieldsToPopulate = new ArrayList<>();
+            List<Map<String, Object>> fld = new ArrayList<Map<String, Object>>();
 
             if (!full) {
-                Set<Integer> attrSubsets = new HashSet();
+                Set<Integer> fieldSubset = new HashSet();
                 //Pick a non duplicate subset - this may be inefficient - TODO
-                while (attrSubsets.size() < NUM_ATTRIBUTES_PER_MESSAGE) {
-                    int attrSubset = rng.nextInt(NUM_TOTAL_ATTRIBUTES);
-                    if (!attrSubsets.contains(attrSubset)) {
-                        attrSubsets.add(attrSubset);
+                while (fieldSubset.size() < NUM_fld_PER_MESSAGE) {
+                    int fno = rng.nextInt(NUM_TOTAL_fld);
+                    if (!fieldSubset.contains(fno)) {
+                        fieldSubset.add(fno);
                     }
                 }
+                fieldsToPopulate = new ArrayList<>(fieldSubset);
             } else {
-                attrsToPopulate = IntStream.range(0, NUM_TOTAL_ATTRIBUTES).boxed().toList();
+                fieldsToPopulate = IntStream.range(0, NUM_TOTAL_fld).boxed().toList();
             }
 
-            for (int attr : attrsToPopulate) {
-                attributes.add(getAttribute(deviceId, now, attr));
+            for (int f : fieldsToPopulate) {
+                fld.add(getField(deviceId, now, f));
             }
-            message.put("attributes", attributes);
+            message.put("fld", fld);
 
         }
 

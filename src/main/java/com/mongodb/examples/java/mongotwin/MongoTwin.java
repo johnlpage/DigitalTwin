@@ -18,33 +18,60 @@ public class MongoTwin {
     public static void main(String[] args) {
         LOG.info("MongoTwin Version 1.0");
 
-        // Configuration
-        int numberOfThreads = 5; // Default number of threads
-        int messagesPerThread = 100000; // Default number of messages per thread
+        // Parse command line arguments
+        CommandLineArgs cmdArgs = CommandLineArgs.parse(args);
 
-        MongoClient singletonClient = MongoClients.create();
+        // Get MongoDB URI from environment variable
+        String mongoUri = System.getenv("MONGODB_URI");
+        if (mongoUri == null || mongoUri.trim().isEmpty()) {
+            mongoUri = "mongodb://localhost:27017"; // Default fallback
+            LOG.warn("MONGODB_URI environment variable not set, using default: " + mongoUri);
+        }
+
+        LOG.info("Configuration:");
+        LOG.info("  Threads: " + cmdArgs.getNumberOfThreads());
+        LOG.info("  Total Messages: " + cmdArgs.getTotalMessages());
+        LOG.info("  Messages per Thread: " + cmdArgs.getMessagesPerThread());
+        LOG.info("  Populate DB: " + cmdArgs.isPopulateDb());
+        LOG.info("  Strategy: " + cmdArgs.getStrategy());
+        LOG.info("  MongoDB URI: " + mongoUri);
+
+        // Configuration
+        int numberOfThreads = cmdArgs.getNumberOfThreads();
+        int messagesPerThread = cmdArgs.getMessagesPerThread();
+
+        MongoClient singletonClient = MongoClients.create(mongoUri);
+
+        if (cmdArgs.isPopulateDb()) {
+            LOG.info("Dropping existing database");
+            singletonClient.getDatabase("digitwin").drop();
+        }
+
         LOG.info("Starting " + numberOfThreads + " threads, each processing " + messagesPerThread + " messages");
 
         // Create thread pool
         ExecutorService executor = Executors.newFixedThreadPool(numberOfThreads);
-        boolean populateDb = true;
+        boolean populateDb = cmdArgs.isPopulateDb();
         Date startTime = new Date();
+
         // Create and submit worker threads
         for (int i = 0; i < numberOfThreads; i++) {
             final int threadId = i;
             executor.submit(() -> {
                 //Generator and strategy per thread
-                MessageGenerator generator = new MessageGenerator();
+                MessageGenerator generator = new MessageGenerator(cmdArgs.getNumberOfDevices());
 
+                LOG.info("Thread {} started", threadId + 1);
 
-                LOG.info("Thread " + threadId + " started");
-                try (WriteStrategy strategy = createStrategy(singletonClient)) {
+                try (WriteStrategy strategy = createStrategy(singletonClient, cmdArgs.getStrategy())) {
                     try {
                         for (int j = 0; j < messagesPerThread; j++) {
                             // Generate message
                             Map<String, Object> message;
 
                             if (populateDb) {
+                                //If populate is true then generate message with a specified ID and also fully populate
+                                // the fields in them
                                 message = generator.getMessage(true, threadId * messagesPerThread + j);
                             } else {
                                 message = generator.getMessage();
@@ -55,20 +82,18 @@ public class MongoTwin {
                         }
                     } catch (Exception e) {
                         LOG.error("Error in thread " + threadId + ": " + e.getMessage());
-                        StackTraceElement[] stackTrace = e.getStackTrace();
-                        StackTraceElement element = stackTrace[0]; // First element is where exception occurred
 
-                        LOG.error("Exception occurred at:");
-                        LOG.error("Class: " + element.getClassName());
-                        LOG.error("Method: " + element.getMethodName());
-                  
-                        LOG.error("Line: " + element.getLineNumber());
+                        e.printStackTrace();
+
                     }
                 } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    LOG.error("Error {}", e.getMessage());
+                    System.exit(1);
+
                 }
                 LOG.info("Thread " + threadId + " completed");
             });
+
         }
 
         // Shutdown executor
@@ -76,7 +101,7 @@ public class MongoTwin {
 
         try {
             // Wait for all threads to complete
-            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+            if (!executor.awaitTermination(60, TimeUnit.DAYS)) {
                 LOG.warn("Executor did not terminate within 60 seconds, forcing shutdown");
                 executor.shutdownNow();
             }
@@ -91,7 +116,13 @@ public class MongoTwin {
     }
 
     // Factory method or simple selection
-    static WriteStrategy createStrategy(MongoClient mongoClient) {
-        return new ReadReplaceStrategy(mongoClient);
+    static WriteStrategy createStrategy(MongoClient mongoClient, String strategy) {
+        return switch (strategy) {
+
+            case "ReadReplaceStrategy" -> new ReadReplaceStrategy(mongoClient);
+            case "BlobStrategy" -> new BlobStrategy(mongoClient);
+            case "ServerSideStrategy" -> new ServerSideStrategy(mongoClient);
+            default -> throw new IllegalStateException("Unexpected Strategy value: " + strategy);
+        };
     }
 }

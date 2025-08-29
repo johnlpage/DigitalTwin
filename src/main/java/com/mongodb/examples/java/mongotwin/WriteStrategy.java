@@ -11,6 +11,7 @@ import java.util.Map;
 
 public class WriteStrategy implements AutoCloseable {
 
+    final int BULK_SIZE = 100;
     MongoClient mongoClient;
     MongoCollection<Document> collection;
     List<WriteModel<Document>> bulkOps = null;
@@ -25,7 +26,7 @@ public class WriteStrategy implements AutoCloseable {
     void SendToDatbase(WriteModel<Document> op) {
 
         bulkOps.add(op);
-        if (bulkOps.size() >= 1000) {
+        if (bulkOps.size() >= BULK_SIZE) {
             collection.bulkWrite(bulkOps);
             bulkOps.clear();
         }
@@ -34,6 +35,8 @@ public class WriteStrategy implements AutoCloseable {
     @Override
     public void close() throws Exception {
         collection = mongoClient.getDatabase("digitwin").getCollection("twins");
-        collection.bulkWrite(bulkOps);
+        if (!bulkOps.isEmpty()) {
+            collection.bulkWrite(bulkOps);
+        }
     }
 }
