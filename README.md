@@ -65,4 +65,14 @@ the id is a name with spaces or capitals, braking on the internal words so
 
 ## Build and Run on AWS**
 
-* *Other Cloud Providers are available as the BBC say
+```
+sudo yum install -y java-21 git maven
+git clone https://github.com/johnlpage/DigitalTwin.git
+export JAVA_HOME="/usr/lib/jvm/java-21-amazon-corretto"
+cd DigitalTwin
+mvn clean package
+```
+
+## Run
+
+**Other Cloud Providers are available as the BBC say
