@@ -59,7 +59,7 @@ public class MessageGenerator {
         field.put("ts", timeRecorded);
 
         // Also mileage - we can relate that to timestamp
-        int initialMileage = realRNG.nextInt(deviceId, 100000);
+        int initialMileage = rng.nextInt(deviceId, 100000);
 
         int runningMins = (int) ((now.getTime() - streamStartTime.getTime()) / 60000);
         int recordiMins = (int) ((timeRecorded.getTime() - streamStartTime.getTime()) / 60000);
@@ -102,7 +102,7 @@ public class MessageGenerator {
     Map<String, Object> getMessage(boolean full, Integer deviceId) {
         HashMap<String, Object> message = new HashMap<>();
         if (deviceId == null) {
-            deviceId = rng.nextInt(nDevices);
+            deviceId = realRNG.nextInt(nDevices);
         }
         message.put("isNew", full);
         message.put("_id", "V_" + deviceId);
