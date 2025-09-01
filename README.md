@@ -92,4 +92,12 @@ java -jar target/MongoTwin-1.0-SNAPSHOT.jar -t 8 -s ReadReplaceStrategy -m 10000
 
 ```
 
+Test Performance (ServerSide) 100% working set
+
+```shell
+
+java -jar target/MongoTwin-1.0-SNAPSHOT.jar -t 8 -s ServerSideStrategy -m 10000000
+
+```
+
 **Other Cloud Providers are available as the BBC say

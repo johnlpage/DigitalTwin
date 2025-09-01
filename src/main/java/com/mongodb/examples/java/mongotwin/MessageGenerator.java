@@ -28,10 +28,12 @@ public class MessageGenerator {
     TechnicalStringGenerator tsg;
     Date streamStartTime = new Date();
     FastRCG rng = new FastRCG();
+    Random realRNG = new Random();
 
     MessageGenerator(int nDevices) {
         this.nDevices = nDevices;
         tsg = new TechnicalStringGenerator();
+        this.realRNG.setSeed(Thread.currentThread().getId());
         rng.setSeed(1); // Predictable and consistent results
     }
 
@@ -57,7 +59,7 @@ public class MessageGenerator {
         field.put("ts", timeRecorded);
 
         // Also mileage - we can relate that to timestamp
-        int initialMileage = rng.nextInt(deviceId, 100000);
+        int initialMileage = realRNG.nextInt(deviceId, 100000);
 
         int runningMins = (int) ((now.getTime() - streamStartTime.getTime()) / 60000);
         int recordiMins = (int) ((timeRecorded.getTime() - streamStartTime.getTime()) / 60000);
