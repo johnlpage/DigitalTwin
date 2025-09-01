@@ -75,4 +75,21 @@ mvn clean package
 
 ## Run
 
+Load Data ( for ReadReplace and ServerSide)
+
+```shell
+export MONGDB_URI="mongodb+srv://digitwin:ssssss@volkswagendigitwin.qcpeq8.mongodb.net/?retryWrites=true&w=majorit&compressors=snappy&appName=VolkswagenDigiTwin"
+
+
+java -jar target/MongoTwin-1.0-SNAPSHOT.jar -t 8 -p true -s ReadReplaceStrategy -m 1000000
+```
+
+Test Performance (ReadReplace) 100% working set
+
+```shell
+
+java -jar target/MongoTwin-1.0-SNAPSHOT.jar -t 8 -s ReadReplaceStrategy -m 10000000
+
+```
+
 **Other Cloud Providers are available as the BBC say
