@@ -43,8 +43,8 @@ public class MongoTwin {
         MongoClient singletonClient = MongoClients.create(mongoUri);
 
         if (cmdArgs.isPopulateDb()) {
-            LOG.info("Dropping existing database");
-            singletonClient.getDatabase("digitwin").drop();
+            // LOG.info("Dropping existing database");
+            // singletonClient.getDatabase("digitwin").drop();
         }
 
         LOG.info("Starting " + numberOfThreads + " threads, each processing " + messagesPerThread + " messages");

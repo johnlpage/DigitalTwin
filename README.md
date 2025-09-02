@@ -81,14 +81,14 @@ Load Data ( for ReadReplace and ServerSide)
 export MONGDB_URI="mongodb+srv://digitwin:ssssss@volkswagendigitwin.qcpeq8.mongodb.net/?retryWrites=true&w=majorit&compressors=snappy&appName=VolkswagenDigiTwin"
 
 
-java -jar target/MongoTwin-1.0-SNAPSHOT.jar -t 8 -p true -s ReadReplaceStrategy -m 1000000
+java -jar target/MongoTwin-1.0-SNAPSHOT.jar -t 32 -p true -s ReadReplaceStrategy -m 10000000 -d 10000000
 ```
 
 Test Performance (ReadReplace) 100% working set
 
 ```shell
 
-java -jar target/MongoTwin-1.0-SNAPSHOT.jar -t 8 -s ReadReplaceStrategy -m 10000000
+java -jar target/MongoTwin-1.0-SNAPSHOT.jar -t 8 -s ReadReplaceStrategy -m 5000000 -d 10000000
 
 ```
 
@@ -96,8 +96,38 @@ Test Performance (ServerSide) 100% working set
 
 ```shell
 
-java -jar target/MongoTwin-1.0-SNAPSHOT.jar -t 8 -s ServerSideStrategy -m 10000000
+java -jar target/MongoTwin-1.0-SNAPSHOT.jar -t 16 -s ServerSideStrategy  -m 5000000 -d 10000000
 
 ```
 
+Load Data for Bloob Strategy
+
+```shell
+export MONGDB_URI="mongodb+srv://digitwin:ssssss@volkswagendigitwin.qcpeq8.mongodb.net/?retryWrites=true&w=majorit&compressors=snappy&appName=VolkswagenDigiTwin"
+
+java -jar target/MongoTwin-1.0-SNAPSHOT.jar -t 8 -p true -s BlogStrategy -m 10000000 -d 10000000
+```
+
+Test Performance (BlobStrategy) 100% working set
+
+```shell
+
+java -jar target/MongoTwin-1.0-SNAPSHOT.jar -t 8 -s BlobStrategy  -m 5000000 -d 10000000
+
+```
+
+Sharded versiuon
+
+``
+use digittwin
+sh.shardCollection("digitwin.twins",{_id:1})
+
+for (let i = 0 ;i < 1000; i++) {  
+let paddedValue = i.toString().padStart(3, '0');  
+let splitKey = "V_" + paddedValue;  
+print(splitKey)
+sh.splitAt("digitwin.twins", {_id: splitKey});  
+}
+
+``
 **Other Cloud Providers are available as the BBC say

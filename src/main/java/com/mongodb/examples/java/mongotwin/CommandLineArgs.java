@@ -75,6 +75,7 @@ public class CommandLineArgs {
         System.out.println("  --threads, -t <number>     Number of threads (default: 5)");
         System.out.println("  --messages, -m <number>    Total number of messages (default: 500000)");
         System.out.println("  --populate, -p <boolean>   Whether to populate DB (default: false)");
+        System.out.println("  --devices, -d <number>   Total number of devices");
         System.out.println("  --strategy, -s <string>    Strategy to use (required)");
         System.out.println("  --help, -h                 Show this help message");
         System.out.println();
