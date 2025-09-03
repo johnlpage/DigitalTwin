@@ -78,10 +78,10 @@ mvn clean package
 Load Data ( for ReadReplace and ServerSide)
 
 ```shell
-export MONGDB_URI="mongodb+srv://digitwin:ssssss@volkswagendigitwin.qcpeq8.mongodb.net/?retryWrites=true&w=majorit&compressors=snappy&appName=VolkswagenDigiTwin"
+export MONGODB_URI="mongodb+srv://digitwin:ssssss@volkswagendigitwin.qcpeq8.mongodb.net/?retryWrites=true&w=majorit&compressors=snappy&appName=VolkswagenDigiTwin"
 
 
-java -jar target/MongoTwin-1.0-SNAPSHOT.jar -t 32 -p true -s ReadReplaceStrategy -m 10000000 -d 10000000
+java -jar target/MongoTwin-1.0-SNAPSHOT.jar -t 32 -p true -s ReadReplaceStrategy -m 10000000
 ```
 
 Test Performance (ReadReplace) 100% working set

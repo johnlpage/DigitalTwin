@@ -62,7 +62,7 @@ public class ServerSideStrategy extends WriteStrategy {
                 }
             }
         }
-        LOG.info(new Document("$set", afterValues).toJson());
+        LOG.debug(new Document("$set", afterValues).toJson());
 
         List<Document> updateSteps = new ArrayList<>();
         UpdateOptions updateOptions = new UpdateOptions().upsert(true);

@@ -5,14 +5,13 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.InsertOneModel;
 import com.mongodb.client.model.ReplaceOneModel;
 import com.mongodb.client.model.WriteModel;
-import org.bson.ByteBuf;
 import org.bson.Document;
-import org.bson.RawBsonDocument;
 import org.bson.types.Binary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -33,35 +32,42 @@ public class BlobStrategy extends WriteStrategy {
         collection = mongoClient.getDatabase("digitwin").getCollection("twins");
     }
 
+    // Can do this with BSON or JSON depending on needing to preserve real types
+
     private static Document getCompressedDocument(Map<String, Object> message) {
-        // Now Compress i/ Convert to BSON bytes
-        Document document = new Document(message);
+        // Now Compress i/ Convert to BSON bytes or JSON Bytes
+
+       /* Document document = new Document(message);
         RawBsonDocument rawBsonDocument = RawBsonDocument.parse(document.toJson());
         ByteBuf byteBuffer = rawBsonDocument.getByteBuffer();
-        byte[] bsonBytes = null;
+        byte[] bytes = null;*/
+
+
+        byte[] bytes = new Document(message).toJson().getBytes(StandardCharsets.UTF_8);
+
         try {
-            bsonBytes = BsonCompression.compressBsonBytes(byteBuffer.array());
+            bytes = BsonCompression.compressBsonBytes(bytes);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        Document compressedDocument = new Document("_id", message.get("_id")).append("payload", new Binary(bsonBytes));
+        Document compressedDocument = new Document("_id", message.get("_id")).append("payload", new Binary(bytes));
         return compressedDocument;
     }
 
     private static Document getDecompressedDocument(Document compressedDocument) {
         // Extract the binary payload
         Binary binaryPayload = compressedDocument.get("payload", Binary.class);
-        byte[] bsonBytes = null;
+        byte[] bytes = null;
         try {
-            bsonBytes = BsonCompression.decompressBsonBytes(binaryPayload.getData());
+            bytes = BsonCompression.decompressBsonBytes(binaryPayload.getData());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
         // Convert BSON bytes back to Document
-        RawBsonDocument rawBsonDocument = new RawBsonDocument(bsonBytes);
-        Document decompressedDocument = Document.parse(rawBsonDocument.toJson());
-
+        // RawBsonDocument rawBsonDocument = new RawBsonDocument(bytes);
+        // Document decompressedDocument = Document.parse(rawBsonDocument.toJson());
+        Document decompressedDocument = Document.parse(new String(bytes, StandardCharsets.UTF_8));
         return decompressedDocument;
     }
 
