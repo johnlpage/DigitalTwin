@@ -44,7 +44,7 @@ public class TechnicalStringGenerator {
         while (sb.length() < targetLength) {
             int choice = rng.nextInt(nTerms);
             sb.append(technicalTerms[choice]);
-            sb.append(" ");
+            sb.append("_");
         }
 
         sb.deleteCharAt(sb.length() - 1);

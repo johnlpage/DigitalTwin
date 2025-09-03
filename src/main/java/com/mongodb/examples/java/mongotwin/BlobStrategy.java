@@ -73,7 +73,6 @@ public class BlobStrategy extends WriteStrategy {
         if (!(Boolean) message.get("isNew")) {
             existingDoc = collection.find(Filters.eq("_id", message.get("_id"))).first();
             existingDoc = getDecompressedDocument(existingDoc);
-
         } else {
             message.remove("isNew");
         }
@@ -81,24 +80,23 @@ public class BlobStrategy extends WriteStrategy {
         if (existingDoc == null) {
 
             // Transform the incoming array to a Map
-            List<?> fldList = (List<?>) message.get("fld");
+            List<?> fldList = (List<?>) message.get("e");
             Map<String, Object> fldMap;
             // Then create the map, casting each fld to Map<String, Object>
             try {
                 fldMap = fldList.stream()
                         .map(fld -> (Map<String, Object>) fld)  // Cast each item
                         .collect(Collectors.toMap(
-                                fld -> (String) fld.get("fid"),  // Key mapper
+                                fld -> (String) fld.get("nodeId"),  // Key mapper
                                 fld -> fld                          // Value mapper
                         ));
             } catch (Exception e) {
                 LOG.error("Error converting fld to map: " + e.getMessage());
                 return;
             }
-            message.put("fld", fldMap);
+            message.put("e", fldMap);
 
             Document compressedDocument = getCompressedDocument(message);
-
             WriteModel<Document> op = new InsertOneModel<>(compressedDocument);
             SendToDatbase(op);
             return;
@@ -111,44 +109,46 @@ public class BlobStrategy extends WriteStrategy {
                     newDoc.put(topLevelField, message.get(topLevelField));
                 }
             }
-
-            Map<String, Object> fldMap = (Map<String, Object>) existingDoc.get("fld");
-
-            List<?> newfldList = (List<?>) message.get("fld");
+            Map<String, Object> fldMap = null;
+            try {
+                fldMap = (Map<String, Object>) existingDoc.get("e");
+            } catch (Exception e) {
+                LOG.error("Error converting fld to map: " + e.getMessage());
+            }
+            List<?> newfldList = (List<?>) message.get("e");
 
             // Process each new fld
+            Map<String, Object> finalFldMap = fldMap;
             newfldList.stream()
                     .map(fld -> (Map<String, Object>) fld)
                     .forEach(newfld -> {
-                        String fldid = (String) newfld.get("fid");
+                        String fldid = (String) newfld.get("nodeId");
 
-                        if (fldid != null && fldMap.containsKey(fldid)) {
-                            Map<String, Object> existingfld = (Map<String, Object>) fldMap.get(fldid);
+                        if (fldid != null && finalFldMap.containsKey(fldid)) {
+                            Map<String, Object> existingfld = (Map<String, Object>) finalFldMap.get(fldid);
 
                             // Compare ts values (assuming they are Long/Integer)
-                            Date newts = (Date) newfld.get("ts");
-                            Date existingts = (Date) existingfld.get("ts");
+                            Long newTs = (Long) newfld.get("tsCC");
+                            Long existingTs = (Long) existingfld.get("tsCC");
 
-                            if (newts != null && existingts != null) {
-                                // Convert to Long for comparison
-                                Long newTs = newts.getTime();
-                                Long existingTs = existingts.getTime();
+                            if (newTs != null && existingTs != null) {
 
                                 // Replace it if the new timestamp is larger
                                 if (newTs > existingTs) {
-                                    fldMap.put(fldid, newfld);
+                                    finalFldMap.put(fldid, newfld);
                                 } else {
-                                    LOG.debug("Not replacing field " + fldid + " as it has a timestamp of " + existingTs);
+                                    LOG.debug("Not replacing fld " + fldid + " as it has a timestamp of " + existingTs);
                                 }
                             }
                         }
                     });
 
 
-            newDoc.put("fld", fldMap);
+            newDoc.put("e", fldMap);
             Document compressedDocument = getCompressedDocument(newDoc);
-            WriteModel<Document> op = new ReplaceOneModel<>(new Document("_id", compressedDocument.get("_id")), compressedDocument);
+            WriteModel<Document> op = new ReplaceOneModel<>(new Document("_id", message.get("_id")), compressedDocument);
             SendToDatbase(op);
         }
     }
+
 }

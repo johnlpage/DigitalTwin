@@ -12,9 +12,6 @@ import java.util.stream.IntStream;
 
 
 public class MessageGenerator {
-    final static int NUM_TOTAL_fld = 250;
-    final static int NUM_fld_PER_MESSAGE = 50;
-
     final static int SHORT_STRING_LENGTH = 16;
     final static int TINY_STRING_LENGTH = 6;
     final static int OUT_OF_ORDER_EVERY = 10000; // One in 10,000 messages is out of order
@@ -25,16 +22,20 @@ public class MessageGenerator {
             "actuation,String,5", "fleetId,String,10000", "fleetProviderId,String,1000"
     };
     private final int nDevices;
+    int NUM_TOTAL_fld = 60;
+    int NUM_fld_PER_MESSAGE = 50;
     TechnicalStringGenerator tsg;
     Date streamStartTime = new Date();
     FastRCG rng = new FastRCG();
     Random realRNG = new Random();
 
-    MessageGenerator(int nDevices) {
+    MessageGenerator(int nDevices, int changes, int totalAttributes) {
         this.nDevices = nDevices;
         tsg = new TechnicalStringGenerator();
         this.realRNG.setSeed(Thread.currentThread().getId());
         rng.setSeed(1); // Predictable and consistent results
+        this.NUM_TOTAL_fld = totalAttributes;
+        this.NUM_fld_PER_MESSAGE = changes;
     }
 
     //Some handy Hex
@@ -52,12 +53,14 @@ public class MessageGenerator {
         Map<String, Object> field = new HashMap<>();
 
         //timestamps - change between every reading
-        field.put("fid", "f" + fld);
-        field.put("tsSent", now);
+
+        field.put("nodeId", String.format("0x%010x", fld));
+        field.put("timestampCarSent", now.getTime());
+        field.put("timestampCarSentUTC", now.getTime());
         // Recorded a little earlier than send
         Date timeRecorded = new Date(now.getTime() - rng.nextInt(120000));
-        field.put("ts", timeRecorded);
-
+        field.put("tsCC", timeRecorded.getTime());
+        field.put("tsCCUTC", timeRecorded.getTime());
         // Also mileage - we can relate that to timestamp
         int initialMileage = rng.nextInt(deviceId, 100000);
 
@@ -66,17 +69,23 @@ public class MessageGenerator {
         // Some sort of device counter independant of time - like a car odometer, changes between some readings
 
 
-        field.put("mileageRecorded", initialMileage + recordiMins);
-        field.put("mileageSent", initialMileage + runningMins);
+        field.put("mileageCarCaptured", initialMileage + recordiMins);
+        field.put("mileageCarSent", initialMileage + runningMins);
 
-        String[] constFields = {"unit", "dataOwner", "textId", "picId"};
+        String[] constFields = {"unit", "dataOwner", "textId", "picId", "actuation"};
         // Some things that dont change - but technically could ocattionally
         rng.setSeed(deviceId + fld);
         for (String cfname : constFields) {
-            int stringId = rng.nextInt(100);
-            field.put(cfname, tsg.generateString(stringId, SHORT_STRING_LENGTH));
-        }
+            // 1 in 4 chance of null
+            if (rng.nextInt(4) == 0) {
+                field.put(cfname, null);
+            } else {
+                int stringId = rng.nextInt(100);
+                field.put(cfname, tsg.generateString(stringId, SHORT_STRING_LENGTH));
+            }
 
+        }
+        field.put("expiresAt", null);
         // The value itself will sometimes vary constantly and other times vary occasioanlly
 
         if (fld % 2 == 0) {
@@ -90,6 +99,9 @@ public class MessageGenerator {
             field.put("value", rng.nextInt(seed, 1000000));
         }
 
+        field.put("dataKeyId", null);
+        field.put("initialisationVector", null);
+        field.put("isConfidential", false);
         return field;
     }
 
@@ -111,7 +123,7 @@ public class MessageGenerator {
         if (rng.nextInt((int) (System.currentTimeMillis() + deviceId), OUT_OF_ORDER_EVERY) == 0) {
             now = new Date(now.getTime() - rng.nextInt(120000));
         }
-        message.put("msgTs", now);
+        message.put("timestampReceived", now);
 
         // For now we can keep these constant, but code will work if we change them
         int tlc = 0;
@@ -144,7 +156,7 @@ public class MessageGenerator {
             for (int f : fieldsToPopulate) {
                 fld.add(getField(deviceId, now, f));
             }
-            message.put("fld", fld);
+            message.put("e", fld);
 
         }
 

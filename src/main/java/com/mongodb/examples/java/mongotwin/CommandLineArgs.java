@@ -11,6 +11,8 @@ public class CommandLineArgs {
     private int numberOfDevices = totalMessages;
     private boolean populateDb = false;         // Default populate DB flag
     private String strategy = null;            // Strategy parameter (required)
+    private int totalAttributes = 60;
+    private int changes = 40;
 
     // Parse command line arguments
     public static CommandLineArgs parse(String[] args) {
@@ -41,6 +43,20 @@ public class CommandLineArgs {
                 case "-p":
                     if (i + 1 < args.length) {
                         cmdArgs.populateDb = Boolean.parseBoolean(args[++i]);
+                    }
+                    break;
+
+                case "--attributes":
+                case "-a":
+                    if (i + 1 < args.length) {
+                        cmdArgs.totalAttributes = Integer.parseInt(args[++i]);
+                    }
+                    break;
+
+                case "--changes":
+                case "-c":
+                    if (i + 1 < args.length) {
+                        cmdArgs.changes = Integer.parseInt(args[++i]);
                     }
                     break;
 
@@ -76,6 +92,9 @@ public class CommandLineArgs {
         System.out.println("  --messages, -m <number>    Total number of messages (default: 500000)");
         System.out.println("  --populate, -p <boolean>   Whether to populate DB (default: false)");
         System.out.println("  --devices, -d <number>   Total number of devices");
+        System.out.println("  --atttributes, -a <number>   Total number of attributes a device can have (default: " +
+                "60)");
+        System.out.println("  --changes, -c <number>   Total number of attributes in a message (default: 40)");
         System.out.println("  --strategy, -s <string>    Strategy to use (required)");
         System.out.println("  --help, -h                 Show this help message");
         System.out.println();
@@ -86,6 +105,14 @@ public class CommandLineArgs {
         System.out.println("Examples:");
         System.out.println("  java MongoDbPopulator --threads 10 --messages 1000000 --strategy bulk");
         System.out.println("  java MongoDbPopulator -t 5 -m 100000 -p true -s single");
+    }
+
+    public int getTotalAttributes() {
+        return totalAttributes;
+    }
+
+    public int getChanges() {
+        return changes;
     }
 
     private void validate() {

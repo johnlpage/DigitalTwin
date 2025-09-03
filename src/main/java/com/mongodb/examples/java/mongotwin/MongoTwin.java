@@ -32,6 +32,9 @@ public class MongoTwin {
         LOG.info("  Threads: " + cmdArgs.getNumberOfThreads());
         LOG.info("  Total Messages: " + cmdArgs.getTotalMessages());
         LOG.info("  Messages per Thread: " + cmdArgs.getMessagesPerThread());
+        LOG.info("  Attributes Per Message: " + (cmdArgs.isPopulateDb() ? cmdArgs.getTotalAttributes() :
+                cmdArgs.getChanges()));
+
         LOG.info("  Populate DB: " + cmdArgs.isPopulateDb());
         LOG.info("  Strategy: " + cmdArgs.getStrategy());
         LOG.info("  MongoDB URI: " + mongoUri);
@@ -43,8 +46,8 @@ public class MongoTwin {
         MongoClient singletonClient = MongoClients.create(mongoUri);
 
         if (cmdArgs.isPopulateDb()) {
-            // LOG.info("Dropping existing database");
-            // singletonClient.getDatabase("digitwin").drop();
+            LOG.info("Dropping existing database");
+            singletonClient.getDatabase("digitwin").drop();
         }
 
         LOG.info("Starting " + numberOfThreads + " threads, each processing " + messagesPerThread + " messages");
@@ -59,7 +62,8 @@ public class MongoTwin {
             final int threadId = i;
             executor.submit(() -> {
                 //Generator and strategy per thread
-                MessageGenerator generator = new MessageGenerator(cmdArgs.getNumberOfDevices());
+                MessageGenerator generator = new MessageGenerator(cmdArgs.getNumberOfDevices(), cmdArgs.getChanges(),
+                        cmdArgs.getTotalAttributes());
 
                 LOG.info("Thread {} started", threadId + 1);
 

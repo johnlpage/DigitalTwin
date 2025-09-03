@@ -44,17 +44,17 @@ public class ServerSideStrategy extends WriteStrategy {
 
         //For Each value in each element in the fld array we want to conditionally set it
 
-        List<?> fldList = (List<?>) message.get("fld");
+        List<?> fldList = (List<?>) message.get("e");
         for (Object fld : fldList) {
             Map<String, Object> fldMap = (Map<String, Object>) fld;
-            String fldid = (String) fldMap.get("fid");
-            Date messageTimestamp = (Date) fldMap.get("ts");
+            String fldid = (String) fldMap.get("nodeId");
+            Long messageTimestamp = (Long) fldMap.get("tsCC");
             for (String key : fldMap.keySet()) {
                 if (!key.equals(fldid)) {
                     // So Set this field (in the server) to either the latest value or the existing value
                     // Depending on whether the existing ts is greater or less than the new ts
-                    String path = String.format("fld.%s.%s", fldid, key);
-                    String existingTimestamp = String.format("$fld.%s.ts", fldid);
+                    String path = String.format("e.%s.%s", fldid, key);
+                    String existingTimestamp = String.format("$e.%s.tsCC", fldid);
                     Object newValue = fldMap.get(key);
                     Document isNewer = new Document("$gt", Arrays.asList(messageTimestamp, existingTimestamp));
                     Document conditional = new Document("$cond", Arrays.asList(isNewer, newValue, "$" + path));
@@ -62,7 +62,7 @@ public class ServerSideStrategy extends WriteStrategy {
                 }
             }
         }
-        LOG.debug(new Document("$set", afterValues).toJson());
+        LOG.info(new Document("$set", afterValues).toJson());
 
         List<Document> updateSteps = new ArrayList<>();
         UpdateOptions updateOptions = new UpdateOptions().upsert(true);
